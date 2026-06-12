@@ -1,0 +1,10 @@
+# Secrets and personal data - never commit
+.env
+owner.json
+conversation.json
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
