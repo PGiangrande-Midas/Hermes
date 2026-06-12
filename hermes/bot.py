@@ -61,7 +61,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if not owner.is_owner(user_id):
         return
 
-    logger.info("received   message from owner")
+    logger.info("[received]  message from owner")
 
     memory: Memory = context.application.bot_data["memory"]
     action: AssistantAction = context.application.bot_data["action"]
@@ -79,7 +79,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     memory.append("user", text)
     memory.append("assistant", reply)
     await update.message.reply_text(reply)
-    logger.info("reply      sent")
+    logger.info("[reply]     sent")
 
 
 def build_application() -> Application:

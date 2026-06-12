@@ -28,7 +28,11 @@ def test_assistant_action_sets_and_logs_intent(caplog):
     with caplog.at_level(logging.INFO):
         asyncio.run(action.act(msg))
     assert msg.intent == "question about scheduling"
-    assert "intent     question about scheduling" in caplog.text
+    # Use the raw record: pytest's caplog.text strips ANSI escape sequences.
+    logged = caplog.records[-1].getMessage()
+    # Tag present and only the intent value is wrapped in the blue ANSI codes.
+    assert logged.startswith("[intent]")
+    assert "\033[94mquestion about scheduling\033[0m" in logged
 
 
 def test_assistant_action_handles_claude_error():

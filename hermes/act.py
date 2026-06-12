@@ -14,6 +14,12 @@ logger = logging.getLogger("hermes")
 
 ERROR_REPLY = "I hit an error reaching my brain. Try again in a moment."
 
+# ANSI bright blue, rendered as Electric Blue (near #2563EB) in the Pantheon
+# terminal scheme. Wraps only the intent value so the rest of the line stays
+# the default color.
+INTENT_COLOR = "\033[94m"
+COLOR_RESET = "\033[0m"
+
 
 class Action(ABC):
     @abstractmethod
@@ -34,5 +40,7 @@ class AssistantAction(Action):
             logger.error("Claude call failed: %s", exc)
             return ERROR_REPLY
         msg.intent = intent
-        logger.info("intent     %s", intent.lower())
+        logger.info(
+            "[intent]    %s%s%s", INTENT_COLOR, intent.lower(), COLOR_RESET
+        )
         return reply
