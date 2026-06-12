@@ -89,7 +89,14 @@ def build_application() -> Application:
     claude = ClaudeClient(api_key=cfg.anthropic_api_key, model=cfg.model)
     action = AssistantAction(claude)
 
-    app = Application.builder().token(cfg.telegram_token).build()
+    # concurrent_updates lets the bot handle a new message even while an earlier
+    # one is still awaiting Claude, so a single slow call cannot freeze dispatch.
+    app = (
+        Application.builder()
+        .token(cfg.telegram_token)
+        .concurrent_updates(True)
+        .build()
+    )
     app.bot_data["owner"] = owner
     app.bot_data["memory"] = memory
     app.bot_data["action"] = action

@@ -14,6 +14,11 @@ logger = logging.getLogger("hermes")
 
 ERROR_REPLY = "I hit an error reaching my brain. Try again in a moment."
 
+# Absolute ceiling on a single Claude round-trip so one slow or stalled call can
+# never hang the handler. The client has its own per-request timeout; this is the
+# hard cap on the whole call, including any retry.
+CALL_TIMEOUT_SECONDS = 45
+
 # ANSI bright blue, rendered as Electric Blue (near #2563EB) in the Pantheon
 # terminal scheme. Wraps only the intent value so the rest of the line stays
 # the default color.
@@ -33,10 +38,14 @@ class AssistantAction(Action):
 
     async def act(self, msg: UnderstoodMessage) -> str:
         try:
-            intent, reply = await asyncio.to_thread(
-                self._claude.respond, msg.history, msg.text
+            intent, reply = await asyncio.wait_for(
+                self._claude.respond(msg.history, msg.text),
+                timeout=CALL_TIMEOUT_SECONDS,
             )
-        except Exception as exc:  # keep the poll loop alive
+        except asyncio.TimeoutError:
+            logger.error("Claude call timed out after %ss", CALL_TIMEOUT_SECONDS)
+            return ERROR_REPLY
+        except Exception as exc:  # keep the bot responsive
             logger.error("Claude call failed: %s", exc)
             return ERROR_REPLY
         msg.intent = intent

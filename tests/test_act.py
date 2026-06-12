@@ -1,7 +1,8 @@
 import asyncio
 import logging
 
-from hermes.act import AssistantAction
+from hermes import act as act_module
+from hermes.act import AssistantAction, ERROR_REPLY
 from hermes.understand import build_understood
 
 
@@ -10,7 +11,7 @@ class FakeClaude:
         self.result = result
         self.calls = []
 
-    def respond(self, history, text):
+    async def respond(self, history, text):
         self.calls.append((history, text))
         return self.result
 
@@ -37,10 +38,26 @@ def test_assistant_action_sets_and_logs_intent(caplog):
 
 def test_assistant_action_handles_claude_error():
     class Boom:
-        def respond(self, history, text):
+        async def respond(self, history, text):
             raise RuntimeError("api down")
 
     action = AssistantAction(Boom())
     msg = build_understood(owner_id=1, text="hi", history=[])
     reply = asyncio.run(action.act(msg))
-    assert "error" in reply.lower()
+    assert reply == ERROR_REPLY
+
+
+def test_assistant_action_times_out_instead_of_hanging(monkeypatch):
+    # A stalled Claude call must not hang the handler: it is bounded by the
+    # CALL_TIMEOUT_SECONDS cap and falls back to ERROR_REPLY.
+    monkeypatch.setattr(act_module, "CALL_TIMEOUT_SECONDS", 0.05)
+
+    class Slow:
+        async def respond(self, history, text):
+            await asyncio.sleep(5)
+            return ("x", "y")
+
+    action = AssistantAction(Slow())
+    msg = build_understood(owner_id=1, text="hi", history=[])
+    reply = asyncio.run(action.act(msg))
+    assert reply == ERROR_REPLY

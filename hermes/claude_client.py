@@ -31,6 +31,10 @@ SYSTEM_PROMPT = (
 )
 
 MAX_TOKENS = 1024
+# Bound each request so a stalled connection fails fast instead of hanging for
+# the SDK default of 600 seconds. One retry still covers a transient blip.
+REQUEST_TIMEOUT = 30.0
+MAX_RETRIES = 1
 
 
 def parse_intent_reply(text: str) -> Tuple[str, str]:
@@ -48,14 +52,16 @@ def parse_intent_reply(text: str) -> Tuple[str, str]:
 
 class ClaudeClient:
     def __init__(self, api_key: str, model: str, sdk=None):
-        self._client = sdk or anthropic.Anthropic(api_key=api_key)
+        self._client = sdk or anthropic.AsyncAnthropic(
+            api_key=api_key, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES
+        )
         self._model = model
 
-    def respond(
+    async def respond(
         self, history: List[Dict[str, str]], text: str
     ) -> Tuple[str, str]:
         messages = list(history) + [{"role": "user", "content": text}]
-        message = self._client.messages.create(
+        message = await self._client.messages.create(
             model=self._model,
             max_tokens=MAX_TOKENS,
             system=SYSTEM_PROMPT,
