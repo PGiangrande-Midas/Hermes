@@ -1,5 +1,8 @@
 """Transport layer: wire Telegram handlers to the understand -> act seam."""
+import asyncio
 import logging
+
+import truststore
 
 from telegram import Update
 from telegram.constants import ChatAction
@@ -19,8 +22,11 @@ from .owner import Owner
 from .understand import build_understood
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+    level=logging.INFO, format="[%(asctime)s] %(message)s", datefmt="%H:%M:%S"
 )
+# Silence noisy third-party HTTP logging so Hermes's own activity feed is clean.
+for _noisy in ("httpx", "httpcore", "telegram", "apscheduler"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 logger = logging.getLogger("hermes")
 
 GREETING = (
@@ -55,6 +61,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if not owner.is_owner(user_id):
         return
 
+    logger.info("received   message from owner")
+
     memory: Memory = context.application.bot_data["memory"]
     action: AssistantAction = context.application.bot_data["action"]
     text = update.message.text
@@ -71,6 +79,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     memory.append("user", text)
     memory.append("assistant", reply)
     await update.message.reply_text(reply)
+    logger.info("reply      sent")
 
 
 def build_application() -> Application:
@@ -92,6 +101,17 @@ def build_application() -> Application:
 
 
 def main() -> None:
+    # Use the OS (Windows) certificate store for TLS verification. This trusts
+    # any corporate proxy or antivirus root CA, which the bundled certifi store
+    # does not. Covers both the Telegram and Anthropic connections.
+    truststore.inject_into_ssl()
+    # Python 3.14 no longer auto-creates an event loop in the main thread, so
+    # ensure one exists before run_polling, which expects asyncio.get_event_loop
+    # to succeed.
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
     app = build_application()
-    logger.info("Hermes is polling. Press Ctrl-C to stop.")
+    logger.info("hermes online, polling")
     app.run_polling(allowed_updates=Update.ALL_TYPES)

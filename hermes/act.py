@@ -34,5 +34,5 @@ class AssistantAction(Action):
             logger.error("Claude call failed: %s", exc)
             return ERROR_REPLY
         msg.intent = intent
-        logger.info("[intent] %s", intent)
+        logger.info("intent     %s", intent.lower())
         return reply

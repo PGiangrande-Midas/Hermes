@@ -3,6 +3,13 @@ import pytest
 from hermes.config import load_config, ConfigError
 
 
+@pytest.fixture(autouse=True)
+def no_dotenv(monkeypatch):
+    # Keep these tests hermetic: do not read the developer's real .env file,
+    # only the environment variables each test sets explicitly.
+    monkeypatch.setattr("hermes.config.load_dotenv", lambda *a, **k: None)
+
+
 def test_load_config_reads_values(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "tok")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "key")

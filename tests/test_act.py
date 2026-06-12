@@ -28,7 +28,7 @@ def test_assistant_action_sets_and_logs_intent(caplog):
     with caplog.at_level(logging.INFO):
         asyncio.run(action.act(msg))
     assert msg.intent == "question about scheduling"
-    assert "[intent] question about scheduling" in caplog.text
+    assert "intent     question about scheduling" in caplog.text
 
 
 def test_assistant_action_handles_claude_error():
