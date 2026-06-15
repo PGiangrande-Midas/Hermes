@@ -1,5 +1,9 @@
 python-telegram-bot==21.9
-anthropic==0.40.0
-python-dotenv==1.0.1
+anthropic==0.105.2
+python-dotenv==1.2.2
 truststore==0.10.4
 pytest==8.3.4
+# Metis observability layer (install editable, not pinned here):
+#   pip install -e C:/Users/Paul/Projects/metis
+# Note: aligning anthropic to 0.105.2 (was 0.40.0) to match Metis; Hermes
+# test suite verified passing on 0.105.2.

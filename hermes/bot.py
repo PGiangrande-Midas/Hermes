@@ -14,7 +14,9 @@ from telegram.ext import (
     filters,
 )
 
-from .act import AssistantAction
+from metis import track
+
+from .act import AssistantAction, ERROR_REPLY
 from .claude_client import ClaudeClient
 from .config import load_config
 from .memory import Memory
@@ -74,7 +76,26 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     msg = build_understood(
         owner_id=user_id, text=text, history=memory.history()
     )
-    reply = await action.act(msg)
+
+    # Metis observability wraps the understand-act turn. The validator judges
+    # whether Hermes understood and responded helpfully; detected_intent is the
+    # Hermes-specific metric, isolated in agent_metrics.
+    async with track(
+        agent="hermes",
+        task=text,
+        success_criteria=(
+            "Correctly understand the owner's intent and respond helpfully and "
+            "concisely in the owner's voice, directly addressing the message "
+            "without asking for information the owner already provided."
+        ),
+        input={"message": text},
+        tags=["hermes"],
+    ) as run_log:
+        reply = await action.act(msg)
+        run_log.set_output(reply)
+        run_log.set_metrics(detected_intent=msg.intent)
+        if reply == ERROR_REPLY:
+            run_log.fail("claude call failed or timed out")
 
     memory.append("user", text)
     memory.append("assistant", reply)
