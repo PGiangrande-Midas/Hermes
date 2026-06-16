@@ -2,6 +2,7 @@
 from typing import Dict, List, Tuple
 
 import anthropic
+from metis import instrument
 
 SYSTEM_PROMPT = (
     "You are Hermes, the owner's personal AI agent and messenger. You are "
@@ -52,9 +53,18 @@ def parse_intent_reply(text: str) -> Tuple[str, str]:
 
 class ClaudeClient:
     def __init__(self, api_key: str, model: str, sdk=None):
-        self._client = sdk or anthropic.AsyncAnthropic(
-            api_key=api_key, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES
-        )
+        if sdk is not None:
+            self._client = sdk
+        else:
+            # Wrap the real client once so every messages.create feeds token
+            # usage and per-model cost into the active Metis track() run.
+            self._client = instrument(
+                anthropic.AsyncAnthropic(
+                    api_key=api_key,
+                    timeout=REQUEST_TIMEOUT,
+                    max_retries=MAX_RETRIES,
+                )
+            )
         self._model = model
 
     async def respond(
